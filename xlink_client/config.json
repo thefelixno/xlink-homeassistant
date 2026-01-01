@@ -7,7 +7,7 @@
   "startup": "services",
   "boot": "auto",
   "host_network": false,
-  "privileged": true,
+  "capabilities": ["NET_ADMIN"],
   "options": {
     "GATEWAY_HOST": "gateway.your-domain.org",
     "GATEWAY_PORT": 51823,
