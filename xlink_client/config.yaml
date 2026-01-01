@@ -1,5 +1,5 @@
 ---
-name: WireGuard
+name: xLink Client
 version: 0.0.7
 slug: xlink_client
 description: "WireGuard client to connect to gateway and forward traffic to app"
@@ -29,6 +29,11 @@ options:
       - 172.27.66.1
     dns: []
   peers: []
+  gateway:
+    host: ""
+    port: int
+    public_key: ""
+  client:
 #    - name: hassio
 #      addresses:
 #        - 172.27.66.2
