@@ -1,5 +1,13 @@
-#!/bin/sh
+#!/usr/bin/with-contenv bash
 set -euxo pipefail
+
+source /usr/bin/bashio.sh
+GATEWAY_HOST=$(bashio::config 'GATEWAY_HOST')
+GATEWAY_PORT=$(bashio::config 'GATEWAY_PORT')
+GATEWAY_PUBKEY=$(bashio::config 'GATEWAY_PUBKEY')
+CLIENT_PRIVKEY=$(bashio::config 'CLIENT_PRIVKEY')
+EXPOSE=$(bashio::config 'EXPOSE')
+LINK_MTU=$(bashio::config 'LINK_MTU')
 
 echo $CLIENT_PRIVKEY > /etc/wireguard/link0.key
 
