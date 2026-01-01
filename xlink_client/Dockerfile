@@ -1,5 +1,6 @@
 ##### new
-FROM alpine:latest
+ARG BUILD_FROM
+FROM $BUILD_FROM
 
 RUN apk add --no-cache wireguard-tools socat bash iproute2
 

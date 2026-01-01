@@ -1,5 +1,5 @@
 name: "xLink Client"
-version: "0.0.2"
+version: "0.0.3"
 slug: xlink_client
 description: "WireGuard client to connect to gateway and forward traffic to app"
 arch:
