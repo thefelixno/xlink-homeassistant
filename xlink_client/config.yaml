@@ -28,12 +28,12 @@ options:
     addresses:
       - 172.27.66.1
     dns: []
-  peers:
-    - name: hassio
-      addresses:
-        - 172.27.66.2
-      allowed_ips: []
-      client_allowed_ips: []
+  peers: []
+#    - name: hassio
+#      addresses:
+#        - 172.27.66.2
+#      allowed_ips: []
+#      client_allowed_ips: []
 schema:
   log_level: list(trace|debug|info|notice|warning|error|fatal)?
   server:
@@ -52,6 +52,12 @@ schema:
     post_up: str?
     post_down: str?
     mtu: int?
+  gateway:
+    host: str
+    port: int
+    public_key: str
+  client:
+    private_key: str
   peers:
     - name: match(^[a-zA-Z0-9\d](?:[a-zA-Z0-9\d]|-(?=[a-zA-Z0-9\d])){0,32}$)
       private_key: str?
