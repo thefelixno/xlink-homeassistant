@@ -1,0 +1,1 @@
+This is a homeassistant add-on to run the xlink-client on a homeassistant instance.
