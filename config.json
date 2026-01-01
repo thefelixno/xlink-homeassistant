@@ -1,0 +1,27 @@
+{
+  "name": "xLink Client",
+  "version": "0.0.1", 
+  "slug": "xlink_client",
+  "description": "WireGuard client to connect to gateway and forward traffic to app",
+  "arch": ["amd64", "armv7", "arm64", "aarch64"],
+  "startup": "services",
+  "boot": "auto",
+  "host_network": false,
+  "privileged": true,
+  "options": {
+    "GATEWAY_HOST": "gateway.your-domain.org",
+    "GATEWAY_PORT": 51823,
+    "GATEWAY_PUBKEY": "",
+    "CLIENT_PRIVKEY": "",
+    "EXPOSE": "host.docker.internal:8123",
+    "LINK_MTU": 1380
+  },
+  "schema": {
+    "GATEWAY_HOST": "str",
+    "GATEWAY_PORT": "int",
+    "GATEWAY_PUBKEY": "str",
+    "CLIENT_PRIVKEY": "str",
+    "EXPOSE": "str",
+    "LINK_MTU": "int"
+  }
+}
