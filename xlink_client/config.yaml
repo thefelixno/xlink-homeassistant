@@ -21,6 +21,7 @@ options:
   CLIENT_PRIVKEY: ""
   EXPOSE: "host.docker.internal:8123"
   LINK_MTU: 1380
+  message: "Hello bubub ..."
 schema:
   GATEWAY_HOST: str
   GATEWAY_PORT: int
@@ -28,3 +29,4 @@ schema:
   CLIENT_PRIVKEY: str
   EXPOSE: str
   LINK_MTU: int
+  message: "str?"
