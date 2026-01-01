@@ -1,3 +1,6 @@
 .DS_Store
 /addons-example
 /example
+/addon-wireguard
+/wireguard
+/xlink_client_old
