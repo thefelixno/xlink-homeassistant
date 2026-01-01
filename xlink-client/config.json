@@ -1,7 +1,7 @@
 {
   "name": "xLink Client",
   "version": "0.0.1", 
-  "slug": "xlink_client",
+  "slug": "xlink-client",
   "description": "WireGuard client to connect to gateway and forward traffic to app",
   "arch": ["amd64", "armv7", "arm64", "aarch64"],
   "startup": "services",
