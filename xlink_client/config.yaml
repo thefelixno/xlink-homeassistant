@@ -1,6 +1,6 @@
 ---
 name: xLink Client
-version: 0.0.7
+version: 0.0.8
 slug: xlink_client
 description: "WireGuard client to connect to gateway and forward traffic to app"
 url: https://github.com/thefelixno/xlink-homeassistant/xlink_client
