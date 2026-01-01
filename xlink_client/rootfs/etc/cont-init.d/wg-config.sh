@@ -69,7 +69,7 @@ gateway_keepalive=5
     echo "AllowedIPs = ${gateway_allowed_ips}"
     echo "PersistentKeepalive = ${gateway_keepalive}"
     echo ""
-} >> "${config}"
+} > "${config}"
 
 ######### INTERFACE = CLIENT
 

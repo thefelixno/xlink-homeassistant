@@ -13,4 +13,6 @@ if bashio::config.has_value "client.forward"; then
 fi
 
 # Forward port 8080
-exec socat TCP4-LISTEN:8080,fork,reuseaddr "TCP4:${target}",reuseaddr
+#exec socat TCP4-LISTEN:8080,fork,reuseaddr "TCP4:${target}",reuseaddr
+
+exec nginx -g "daemon off;" -c /opt/nginx/nginx.conf

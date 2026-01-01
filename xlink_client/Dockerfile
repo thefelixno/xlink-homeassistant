@@ -34,6 +34,7 @@ RUN \
         go
 
 RUN apk add --no-cache socat
+RUN apk add --no-cache nginx
 
 # Copy root filesystem
 COPY rootfs /
