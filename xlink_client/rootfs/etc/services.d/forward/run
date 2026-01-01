@@ -1,0 +1,16 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: WireGuard
+# Forwards port 8080 on wireguard-connection to local network
+# ==============================================================================
+
+bashio::log.info "Starting Port forward..."
+
+# Get the target from forward
+target="host.docker.internal:8123"
+if bashio::config.has_value "client.forward"; then
+    target=$(bashio::config "client.forward")
+fi
+
+# Forward port 8080
+exec socat TCP4-LISTEN:8080,fork,reuseaddr "TCP4:${target}",reuseaddr

@@ -28,12 +28,14 @@ options:
     addresses:
       - 172.27.66.1
     dns: []
-  peers: []
   gateway:
-    host: ""
-    port: int
+    host: "endpoint.your-server.de"
+    port: 5820
     public_key: ""
   client:
+    private_key: ""
+    forward: "host.docker.internal:8123"
+  peers: []
 #    - name: hassio
 #      addresses:
 #        - 172.27.66.2
@@ -63,6 +65,7 @@ schema:
     public_key: str
   client:
     private_key: str
+    forward: str
   peers:
     - name: match(^[a-zA-Z0-9\d](?:[a-zA-Z0-9\d]|-(?=[a-zA-Z0-9\d])){0,32}$)
       private_key: str?

@@ -89,6 +89,7 @@ client_addr="10.0.0.2/24"
 {
     echo "[Interface]"
     echo "Address = ${client_addr}"
+    echo "ListenPort = ${gateway_port}"
     echo "PrivateKey = ${client_private_key}"
 } >> "${config}"
 

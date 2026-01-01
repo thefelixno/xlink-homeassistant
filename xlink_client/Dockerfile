@@ -33,6 +33,8 @@ RUN \
         .build-dependencies \
         go
 
+RUN apk add --no-cache socat
+
 # Copy root filesystem
 COPY rootfs /
 
