@@ -1,82 +1,39 @@
 ---
 name: xLink Client
-version: 0.0.8
+version: 0.1.0
 slug: xlink_client
-description: "WireGuard client to connect to gateway and forward traffic to app"
+description: "Tailscale client to connect Home Assistant to your tailnet"
 url: https://github.com/thefelixno/xlink-homeassistant/xlink_client
 arch:
   - aarch64
   - amd64
-#  - i386
 init: false
 ports:
   80/tcp: null
-  51820/udp: 51820
-ports_description:
-  80/tcp: WireGuard peers status API
-  51820/udp: "WireGuard: forward this port in your router"
 hassio_api: true
 privileged:
   - NET_ADMIN
-devices:
-  - /dev/net/tun
 map:
   - ssl:rw
 options:
-  server:
-    host: myautomatedhome.duckdns.org
-    addresses:
-      - 172.27.66.1
-    dns: []
-  gateway:
-    host: "endpoint.your-server.de"
-    port: 5820
-    public_key: ""
-  client:
-    private_key: ""
-    forward: "host.docker.internal:8123"
-  peers: []
-#    - name: hassio
-#      addresses:
-#        - 172.27.66.2
-#      allowed_ips: []
-#      client_allowed_ips: []
+  auth_key: ""
+  login_server: ""
+  hostname: ""
+  accept_dns: false
+  advertise_routes: []
+  advertise_exit_node: false
+  advertise_tags: []
+  forward: ""
 schema:
+  auth_key: str
+  login_server: str?
+  hostname: str?
+  accept_dns: bool?
+  advertise_routes:
+    - str?
+  advertise_exit_node: bool?
+  advertise_tags:
+    - str?
+  forward: str?
   log_level: list(trace|debug|info|notice|warning|error|fatal)?
-  server:
-    host: str
-    interface: match(^wg([0-9])+$)?
-    addresses:
-      - str
-    dns:
-      - str
-    private_key: password?
-    public_key: str?
-    fwmark: str?
-    table: str?
-    pre_up: str?
-    pre_down: str?
-    post_up: str?
-    post_down: str?
-    mtu: int?
-  gateway:
-    host: str
-    port: int
-    public_key: str
-  client:
-    private_key: str
-    forward: str
-  peers:
-    - name: match(^[a-zA-Z0-9\d](?:[a-zA-Z0-9\d]|-(?=[a-zA-Z0-9\d])){0,32}$)
-      private_key: str?
-      public_key: str?
-      addresses:
-        - str
-      allowed_ips:
-        - str
-      client_allowed_ips:
-        - str
-      persistent_keep_alive: int?
-      endpoint: str?
-      pre_shared_key: str?
-      fwmark: str?
+---

@@ -1,29 +1,19 @@
-# xLink Client Add-on: in development
+# Home Assistant Community Add-on: xLink Client
 
-## IMPORTANT: Configure your homeassistant
+[![Project Stage][project-stage-shield] ![Project Maintenance][maintenance-shield]](#)
 
-Allow proxy connections. You can find the right ip address from browsing the homeassistant logs for "unknwon proxy" errors
+[![Discord][discord-shield]][discord] [![Community Forum][forum-shield]][forum]
 
-add this to your configuration.yaml
+Tailscale: fast, modern, secure mesh networking for your Home Assistant.
 
-```ts
-http:
-  # For extra security set this to only accept connections on localhost if NGINX is on the same machine
-  # Uncommenting this will mean that you can only reach Home Assistant using the proxy, not directly via IP from other clients.
-  # server_host: 127.0.0.1
-  use_x_forwarded_for: true
-  # You must set the trusted proxy IP address so that Home Assistant will properly accept connections
-  # Set this to your NGINX machine IP, or localhost if hosted on the same machine.
-  trusted_proxies:
-    - 172.30.32.0/23 <use big submask for NGINX IP address here to avoid issues when the docker network changes>
-```
+## About
 
-_Based on blueprint for new add-ons._
+[Home Assistant Community Add-on: xLink Client](https://github.com/thefelixno/xlink-homeassistant)
 
-https://github.com/home-assistant/addons-example/blob/main/example/README.md
-
-![Supports aarch64 Architecture][aarch64-shield]
-![Supports amd64 Architecture][amd64-shield]
-
-[aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
-[amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
+[xlink-client]: https://github.com/thefelixno/xlink-homeassistant
+[discord-shield]: https://img.shields.io/discord/478094546522079232.svg
+[discord]: https://discord.me/hassioaddons
+[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg
+[forum]: https://community.home-assistant.io
+[maintenance-shield]: https://img.shields.io/badge/maintenance-active-green.svg
+[project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg

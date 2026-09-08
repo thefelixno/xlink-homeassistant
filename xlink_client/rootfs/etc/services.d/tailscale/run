@@ -1,0 +1,59 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Home Assistant Add-on: xLink Client (Tailscale)
+# Run Tailscale daemon and authenticate
+# ==============================================================================
+
+# Set hostname if configured
+HOSTNAME=""
+if bashio::config.has_value 'hostname'; then
+    HOSTNAME=$(bashio::config 'hostname')
+fi
+
+# Build tailscale up options
+UP_OPTS=""
+[ -n "$HOSTNAME" ] && UP_OPTS="$UP_OPTS --hostname=$HOSTNAME"
+
+# Authentication
+if bashio::config.has_value 'auth_key'; then
+    AUTH_KEY=$(bashio::config 'auth_key')
+    UP_OPTS="$UP_OPTS --authkey=$AUTH_KEY"
+    bashio::log.info "Authenticating with Tailscale auth key..."
+else
+    bashio::log.info "No auth key configured. Tailscale will use existing session or require interactive login."
+fi
+
+# Custom login server
+if bashio::config.has_value 'login_server'; then
+    LOGIN_SERVER=$(bashio::config 'login_server')
+    UP_OPTS="$UP_OPTS --login-server=$LOGIN_SERVER"
+fi
+
+# Do not accept DNS config from tailnet (may interfere with HA)
+UP_OPTS="$UP_OPTS --accept-dns=false"
+
+# Authenticate (bring up the interface)
+bashio::log.info "Starting Tailscale..."
+tailscale up $UP_OPTS ||
+    bashio::exit.nok "Failed to authenticate with Tailscale. Check your auth_key and network connectivity."
+
+# Wait for connection
+bashio::log.info "Waiting for Tailscale connection..."
+RETRIES=30
+while [ $RETRIES -gt 0 ]; do
+    STATE=$(tailscale status --json 2>/dev/null | grep -o '"State":"[^"]*"' | head -1)
+    if echo "$STATE" | grep -q '"running"'; then
+        TAILSCALE_IP=$(tailscale ip -4 2>/dev/null)
+        bashio::log.info "Connected! Tailscale IP: ${TAILSCALE_IP:-unknown}"
+        break
+    fi
+    sleep 2
+    RETRIES=$((RETRIES - 1))
+done
+
+if [ $RETRIES -eq 0 ]; then
+    bashio::log.warning "Tailscale connection timeout, but starting daemon anyway..."
+fi
+
+# Start tailscaled in foreground (s6 supervises this)
+exec tailscaled --state=/tmp/tailscaled.state

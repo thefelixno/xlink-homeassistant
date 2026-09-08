@@ -1,8 +1,44 @@
 #!/command/with-contenv bashio
 # ==============================================================================
-# Home Assistant Community Add-on: WireGuard
-# Shows current WireGuard status
+# Home Assistant Add-on: xLink Client (Tailscale)
+# Status API — reports node state and peer information as JSON
 # ==============================================================================
-sleep 30
-bashio::log.info "Requesting current status from WireGuard..."
-exec wg show
+
+while true; do
+    # Gather status
+    STATE="unknown"
+    NODE_ID=""
+    NODE_NAME=""
+    TAILSCALE_IP=""
+    MACHINE_STATUS="unknown"
+    PEERS=0
+    UPTIME=0
+
+    # Parse node state
+    if JSON=$(tailscale status --json 2>/dev/null); then
+        # Extract node state
+        STATE=$(echo "$JSON" | grep -o '"State":"[^"]*"' | head -1 | cut -d'"' -f4)
+        MACHINE_STATUS=$(echo "$JSON" | grep -o '"MachineStatus":"[^"]*"' | head -1 | cut -d'"' -f4)
+        NODE_NAME=$(echo "$JSON" | grep -o '"NodeName":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+        # Extract peer count
+        PEERS=$(echo "$JSON" | grep -c '"Peer"' || echo 0)
+    fi
+
+    # Get Tailscale IP
+    TAILSCALE_IP=$(tailscale ip -4 2>/dev/null | head -1)
+
+    # Build JSON response
+    RESPONSE=$(bashio::var.json \
+        'state' "${STATE}" \
+        'node_name' "${NODE_NAME}" \
+        'machine_status' "${MACHINE_STATUS}" \
+        'tailscale_ip' "${TAILSCALE_IP}" \
+        'connected_peers' "${PEERS}" \
+    )
+
+    echo -e "HTTP/1.1 200 OK\r\nContent-type: application/json\r\n\r\n${RESPONSE}" \
+        | nc -l -p 80 > /dev/null 2>&1
+
+    sleep 30
+done

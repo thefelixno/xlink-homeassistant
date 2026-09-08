@@ -1,5 +1,3 @@
-# xLink Client Add-on: in development
+# xLink Client Add-on
 
-## How to use
-
-consult x-link-gateway for now
+See the main [README.md](../../README.md) for usage instructions.

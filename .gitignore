@@ -2,5 +2,5 @@
 /addons-example
 /example
 /addon-wireguard
-/wireguard
 /xlink_client_old
+/.README.j2

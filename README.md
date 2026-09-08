@@ -1,6 +1,6 @@
 # xLink Client — Home Assistant Add-on
 
-> A WireGuard-based reverse tunnel add-on for Home Assistant that securely exposes your local Home Assistant (or any service) through a remote gateway endpoint.
+> A [Tailscale](https://tailscale.com) add-on for Home Assistant that connects your instance to your tailnet, providing secure remote access without manual VPN configuration.
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
@@ -12,152 +12,190 @@
 
 ## What It Does
 
-This add-on creates a **persistent WireGuard tunnel** from your Home Assistant instance to a remote gateway server. Once connected, it:
+This add-on joins your Home Assistant instance to a [Tailscale](https://tailscale.com) tailnet, giving it:
 
-1. Establishes a WireGuard VPN tunnel to a remote **gateway endpoint** (your server in the cloud or at a data center).
-2. Runs a **port forwarder** (`socat`) that exposes `localhost:8123` (or any configured target) through the tunnel.
-3. Provides a **status API** on port `80` that reports WireGuard peer handshake and transfer statistics as JSON.
-4. Generates **peer client configurations** and QR codes for additional WireGuard peers.
+- **A unique Tailscale IP** (from the `100.x.y.z` magicDNS range)
+- **Automatic encrypted mesh networking** — no manual VPN setup
+- **NAT traversal** — works behind any firewall or CGNAT
+- **Subnet routing** — optionally advertise your local network to the tailnet
+- **Exit node support** — optionally use your HA as an exit node
+- **Status dashboard** — connection state, peers, and transfer stats
 
-This is useful for:
-- Remotely accessing your Home Assistant from outside your network.
-- Connecting smart home devices that need to reach a cloud gateway.
-- Creating a secure reverse tunnel for Home Assistant behind CGNAT or restrictive firewalls.
+This is ideal for:
+- Remotely accessing Home Assistant from anywhere with zero port forwarding
+- Exposing your local network (subnets) to your tailnet
+- Connecting HA to other services across different networks
+- Using your HA machine as a network exit node
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────┐         WireGuard UDP            ┌────────────────────────┐
-│  Home Assistant Add-on (HA)      │◄────────────────────────────────►│  Gateway Server         │
-│                                  │         (port 51820)             │  (your remote server)   │
-│  ┌────────────────────────────┐  │                                  │                         │
-│  │ WireGuard (wg-quick)       │  │                                  │  xLink Gateway          │
-│  │  - Client interface        │  │                                  │                         │
-│  │  - Peer (gateway endpoint) │  │                                  │                         │
-│  └────────────────────────────┘  │                                  │                         │
-│          │                       │                                  │                         │
-│  ┌───────▼───────────────┐       │                                  │                         │
-│  │ socat port forwarder  │       │                                  │                         │
-│  │ :8080 → host.docker  │       │                                  │                         │
-│  │   .internal:8123      │       │                                  │                         │
-│  └───────────────────────┘       │                                  │                         │
-│                                  │                                  │                         │
-│  ┌────────────────────────────┐  │                                  │                         │
-│  │ API status endpoint (:80)  │  │                                  │                         │
-│  │ JSON: peer stats, HS, Tx/Rx│  │                                  │                         │
-│  └────────────────────────────┘  │                                  │                         │
-└──────────────────────────────────┘                                  └────────────────────────┘
+┌──────────────────────────────────────┐
+│  Home Assistant Add-on               │
+│                                      │
+│  ┌────────────────────────────────┐  │
+│  │ Tailscale Daemon (tailscaled)  │  │  Creates tailscale0 interface
+│  │  - Auth via auth key           │  │  with Tailscale IP
+│  │  - Automatic reconnection      │  │
+│  └────────────────────────────────┘  │
+│              │                        │
+│         tailscale0                    │
+│       (100.x.y.z)                     │
+│              │                        │
+│  ┌────────────────────────────────┐  │
+│  │ socat port forwarder           │  │  Optional: forward local
+│  │  (configurable)                │  │  services to tailnet
+│  └────────────────────────────────┘  │
+│                                      │
+│  ┌────────────────────────────────┐  │
+│  │ Status API (port 80)           │  │  JSON: state, peers, IPs
+│  └────────────────────────────────┘  │
+└──────────────────────────────────────┘
+              │
+         DERP / Coord
+        (Tailscale network)
+              │
+     ┌────────┴────────┐
+     │                 │
+┌────▼─────┐    ┌──────▼──────┐
+│ Phone/   │    │ Other       │
+│ Laptop   │    │ Tailnet     │
+│ (your    │    │ devices     │
+│ tailnet) │    │             │
+└──────────┘    └─────────────┘
 ```
 
 ---
 
 ## Installation
 
-### Step 1: Add the Repository
+### Step 1: Set Up Tailscale
+
+1. If you don't have a Tailscale account, create one at [tailscale.com](https://tailscale.com).
+2. Install Tailscale on at least one other device on your network (phone, laptop, server) so you can verify connectivity.
+
+### Step 2: Create an Auth Key
+
+1. Go to your Tailscale admin console: <https://login.tailscale.com/admin/auth-keys>
+2. Click **Generate key**.
+3. Set:
+   - **Reusable**: ✅ (so the add-on can reconnect after restart)
+   - **Expires**: Your preferred expiry (or leave as never)
+   - **Ephemeral**: ❌ (you want this to be a persistent node)
+4. Copy the generated key (starts with `tskey-client-...` or `tskey-auth-...`).
+
+### Step 3: Add the Repository
 
 1. In Home Assistant, go to **Supervisor → Add-on Store → ⋮ → Add-on repositories**.
-2. Add this repository URL:
+2. Add:
    ```
    https://github.com/thefelixno/xlink-homeassistant
    ```
-3. Refresh the store — you should see **xLink Client** appear.
+3. Refresh — **xLink Client** should appear.
 
-### Step 2: Install the Add-on
+### Step 4: Install & Configure
 
-1. Navigate to **xLink Client** in the add-on store.
-2. Click **Install**.
+1. Open **xLink Client** → **Configuration**.
+2. Paste your **Auth Key** in the `auth_key` field.
+3. (Optional) Configure subnet routing, exit node, or port forwarding (see below).
+4. Click **Save** → **Start**.
 
 ---
 
 ## Configuration
 
-The add-on configuration is editable via **Configuration** tab in the add-on UI, or by editing `/ssl/addon_configs/xlink_client/config.yaml`.
+Edit via the **Configuration** tab in the add-on UI.
 
-### Required Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `gateway.host` | `str` | Hostname or IP of your remote gateway server (e.g., `endpoint.your-server.de`) |
-| `gateway.port` | `int` | UDP port the gateway is listening on (e.g., `5820`) |
-| `gateway.public_key` | `str` | WireGuard **public key** of the gateway server |
-| `client.private_key` | `str` | WireGuard **private key** for this client (generated on first run if not provided) |
-
-### Optional Fields
-
-#### Server / Tunnel Settings
+### Required
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `server.host` | `str` | Hostname for peer endpoint references (used in generated peer configs) |
-| `server.addresses` | `list<str>` | IP addresses for the WireGuard interface (e.g., `["172.27.66.1"]`) |
-| `server.dns` | `list<str>` | DNS servers for peer client configs |
-| `server.interface` | `str` | WireGuard interface name (default: `wg0`) |
-| `server.mtu` | `int` | Custom MTU for the tunnel |
-| `server.private_key` | `str` | Server's own private key (for peer generation) |
-| `server.public_key` | `str` | Server's own public key (for peer generation) |
+| `auth_key` | `str` | Tailscale auth key (starts with `tskey-...`). Required for first-time authentication. |
 
-#### Client Forward Settings
+### Connection Options
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `client.forward` | `str` | Target to forward through the tunnel (default: `host.docker.internal:8123`) |
+| `login_server` | `str` | Custom coordination server URL. Only needed for headless/self-hosted setups (e.g., `https://your-headscale-server:8080`). Default: Tailscale's public servers. |
+| `hostname` | `str` | Node name in your tailnet. Defaults to the add-on slug (`xlink_client`). |
+| `accept_dns` | `bool` | Accept DNS configuration from the tailnet. Default: `false` (recommended to avoid interfering with HA's DNS). |
 
-  Examples:
-  - `host.docker.internal:8123` — Forward Home Assistant (default)
-  - `192.168.1.100:443` — Forward any local HTTPS service
-  - `localhost:8123` — Forward from within the container network
+### Advertisement Options
 
-#### Peer Configuration (Optional)
+These options are applied via `tailscale set` and can be changed at any time (even while running).
 
-Add additional WireGuard peers that can connect **to** this instance:
+| Field | Type | Description |
+|-------|------|-------------|
+| `advertise_routes` | `list<str>` | Subnets to advertise to the tailnet. Example: `["192.168.1.0/24"]` makes your entire LAN reachable from other tailnet devices. |
+| `advertise_exit_node` | `bool` | Advertise this node as an exit node. When enabled, all traffic from other tailnet devices can be routed through your HA machine. |
+| `advertise_tags` | `list<str>` | ACL tags to apply to this node. Requires an admin-approved ACL or auto-approve in the tailnet settings. Example: `["tag:home", "tag:hass"]`. |
+
+### Port Forwarding (Optional)
+
+Forward a port on the Tailscale interface to a local service:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `forward` | `str` | Format: `bind_port:target_host:target_port`. Example: `8123:host.docker.internal:8123` exposes HA on Tailscale port 8123. Leave empty to disable. |
+
+**Examples:**
+- `8123:host.docker.internal:8123` — Expose Home Assistant on Tailscale
+- `443:homeassistant:443` — Expose HA with SSL
+- `9200:elasticsearch:9200` — Expose any service
+
+### Subnet Routing Example
+
+To make your entire home network (`192.168.1.0/24`) reachable from your tailnet:
 
 ```yaml
-peers:
-  - name: hassio
-    addresses:
-      - 172.27.66.2
-    allowed_ips: []          # Defaults to peer addresses
-    client_allowed_ips: []   # Defaults to 0.0.0.0/0
-    persistent_keep_alive: 25
-    endpoint: "peer-host:51820"   # Optional: if this peer initiates connections
+auth_key: "tskey-xxxxxxx"
+advertise_routes:
+  - "192.168.1.0/24"
+accept_dns: false
 ```
 
-For each peer, the add-on will:
-- Generate (or use provided) WireGuard key pairs
-- Create a client configuration file at `/ssl/wireguard/<name>/client.conf`
-- Generate a QR code at `/ssl/wireguard/<name>/qrcode.png`
-- Register the peer with the status API
+Then in your Tailscale admin console (ACLs), ensure the route is approved:
+```json
+{
+  "type": "routes",
+  "values": ["192.168.1.0/24"]
+}
+```
+
+Or enable **Auto-approve** for subnets in the Tailscale settings.
+
+### Exit Node Example
+
+Use your HA machine as an exit node for all tailnet traffic:
+
+```yaml
+auth_key: "tskey-xxxxxxx"
+advertise_exit_node: true
+```
+
+After connecting, other tailnet devices can route their traffic through your HA by selecting it as the exit node.
 
 ---
 
 ## Full Configuration Example
 
 ```yaml
-server:
-  host: myautomatedhome.duckdns.org
-  addresses:
-    - 172.27.66.1
-  dns: []
+auth_key: "tskey-client-xxxxxxxxxxxxxxxxxxxxxxxx"
+login_server: ""                       # Leave empty for public Tailscale
+hostname: "homeassistant"              # Custom node name
+accept_dns: false
 
-gateway:
-  host: "endpoint.your-server.de"
-  port: 5820
-  public_key: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx="
+advertise_routes:
+  - "192.168.1.0/24"                   # Advertise home network
+advertise_exit_node: false
+advertise_tags:
+  - "tag:home"
+  - "tag:hass"
 
-client:
-  private_key: "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy="
-  forward: "host.docker.internal:8123"
-
-peers: []
-#   - name: hassio
-#     addresses:
-#       - 172.27.66.2
-#     allowed_ips: []
-#     client_allowed_ips: []
-
-log_level: info   # trace | debug | info | notice | warning | error | fatal
+forward: ""                            # No port forwarding (use tailscale IP directly)
+log_level: info
 ```
 
 ---
@@ -166,42 +204,75 @@ log_level: info   # trace | debug | info | notice | warning | error | fatal
 
 | Port | Protocol | Purpose |
 |------|----------|---------|
-| `51820` | UDP | WireGuard tunnel endpoint |
-| `80` | TCP | Peer status API (JSON response) |
+| `80` | TCP | Status API (JSON response) |
 
-> **Router tip:** Forward port `51820/UDP` on your home router to the Home Assistant machine for inbound peer connections.
+> **Note:** No inbound port forwarding is needed on your router. Tailscale handles all connectivity via DERP relay servers and direct peer-to-peer connections.
 
 ---
 
 ## Status API
 
-The add-on exposes a JSON API at `http://<addon-ip>:80` (or `http://host.docker.internal:80` from outside) with peer statistics:
+The add-on exposes a JSON endpoint at `http://<addon-ip>:80`:
 
-```json
-[
-  {
-    "name": "hassio",
-    "endpoint": "1.2.3.4:5820",
-    "latest_handshake": "1700000000000000000",
-    "transfer_rx": "12345",
-    "transfer_tx": "67890"
-  }
-]
+```bash
+# Check status
+curl http://172.30.32.1:80
+
+# Example response
+{
+  "state": "running",
+  "node_id": "abc123",
+  "node_name": "xlink-client-xyz",
+  "tailscale_ips": ["100.115.29.117"],
+  "machine_status": "Running",
+  "connected_peers": 3,
+  "uptime_seconds": 86400
+}
 ```
+
+---
+
+## Accessing Home Assistant Remotely
+
+Once connected, you have **three ways** to reach Home Assistant:
+
+### Method 1: Tailscale IP (Recommended)
+
+Home Assistant is accessible at its Tailscale IP:
+```
+http://100.115.29.117:8123
+```
+No configuration changes needed — HA listens on all interfaces by default.
+
+### Method 2: MagicDNS
+
+If MagicDNS is enabled in your tailnet, use the node name:
+```
+http://xlink-client.your-tailnet.ts.net:8123
+```
+
+### Method 3: Advertised Subnet
+
+If you advertised `192.168.1.0/24`, use your HA's actual LAN IP:
+```
+http://192.168.1.50:8123
+```
+(other tailnet devices can now reach your LAN through the tunnel)
 
 ---
 
 ## Home Assistant Proxy Configuration
 
-If you're accessing Home Assistant through the tunnel (e.g., via Nginx reverse proxy), you need to configure HA to trust the proxy:
+If you access HA through the Tailscale IP, no special proxy config is needed.
+
+If you access HA through a reverse proxy (Nginx, etc.) that sits between the tailnet and HA:
 
 ```yaml
-# In your Home Assistant configuration.yaml
+# In Home Assistant configuration.yaml
 http:
   use_x_forwarded_for: true
   trusted_proxies:
-    - 172.30.32.0/23    # Docker add-on network range
-    # Or: 127.0.0.1     # If the tunnel endpoint is on the same host
+    - 172.30.32.0/23    # Docker add-on network
 ```
 
 ---
@@ -210,36 +281,54 @@ http:
 
 | Service | Description |
 |---------|-------------|
-| `wireguard` | Starts the WireGuard tunnel via `wg-quick up wg0` |
-| `forward` | Runs `socat` to forward tunnel traffic to `client.forward` target |
-| `api` | HTTP server exposing WireGuard peer status as JSON on port 80 |
-| `status` | One-time `wg show` log after 30s startup delay |
+| `tailscale` | `tailscaled` daemon — manages the encrypted mesh network |
+| `forward` | `socat` port forwarder — exposes local services on the Tailscale interface |
+| `status` | HTTP API — reports node state, IPs, and peer count |
 
 ---
 
 ## Troubleshooting
 
-### Tunnel won't start
+### Add-on starts but no Tailscale IP appears
 
-1. Check the add-on log for configuration errors.
-2. Verify `gateway.host`, `gateway.port`, and `gateway.public_key` are correct.
-3. Ensure `client.private_key` is set (the add-on won't auto-generate it for the client side).
-4. Test connectivity: `ping <gateway_host>` from within the add-on shell.
+1. Check the add-on log — look for authentication errors.
+2. Verify your `auth_key` is correct and hasn't expired.
+3. Ensure the key is marked as **Reusable**.
+4. Check outbound connectivity — the container needs HTTPS access to `login.tailscale.com`.
 
-### "Unknown proxy" errors in Home Assistant
+### Can't reach Home Assistant from other tailnet devices
 
-Add the trusted proxy configuration shown above in **Proxy Configuration**.
+1. Verify the add-on shows a Tailscale IP (check status API).
+2. If using subnet routing, confirm the route is approved in the Tailscale admin console.
+3. Check that your local firewall allows inbound connections on port 8123.
+4. Ensure HA's `server_host` isn't restricted to `127.0.0.1` — it should listen on all interfaces (`0.0.0.0`).
+
+### Tailscale IP changes after restart
+
+This should **not** happen with a static node key. If it does:
+1. Delete the old node from the Tailscale admin console.
+2. Restart the add-on — it will re-register with the same key.
+
+### DNS resolution fails on other devices
+
+Set `accept_dns: true` if you want the add-on to push DNS records to the tailnet. Note: this may interfere with your HA instance's DNS if MagicDNS is already enabled elsewhere.
 
 ### Port forwarding not working
 
-- Verify `client.forward` points to the correct target.
-- From the add-on shell, test with: `telnet host.docker.internal 8123`.
-- Check firewall rules on your Home Assistant host.
+1. Verify the `forward` format: `bind_port:target_host:target_port`.
+2. Test from within the add-on shell: `nc -zv host.docker.internal 8123`.
+3. Check that the target service is actually running and accessible.
 
-### Peer status API returns empty
+---
 
-- Ensure peers are configured with valid WireGuard public keys.
-- Check that peers have actually connected (look for handshake timestamps).
+## Migration from WireGuard
+
+If you're migrating from the WireGuard version:
+
+1. **No data migration needed** — Tailscale manages its own state.
+2. **Remove WireGuard config** — the new add-on uses a completely different configuration.
+3. **Generate a new auth key** — Tailscale auth keys replace WireGuard key pairs.
+4. **Simpler setup** — no manual key management, endpoint configuration, or routing rules needed.
 
 ---
 
@@ -247,12 +336,9 @@ Add the trusted proxy configuration shown above in **Proxy Configuration**.
 
 ### DevContainer
 
-This repo includes a Home Assistant devcontainer for local add-on development:
-
 ```bash
 # Open in VS Code with Dev Containers extension
 code .
-# Or: docker buildx build -t xlink-client-dev .
 ```
 
 ### Build
@@ -268,10 +354,9 @@ ha addons build xlink_client
 
 - **Author:** Felix Nölte <mail@felixnoelte.de>
 - **Repository:** [thefelixno/xlink-homeassistant](https://github.com/thefelixno/xlink-homeassistant)
-- Built on [Home Assistant Add-on Base](https://github.com/hassio-addons/addon-base)
-
-This add-on is based on the WireGuard add-on blueprint from the Home Assistant Community Add-ons project.
+- Tailscale: [tailscale.com](https://tailscale.com)
+- Based on [Home Assistant Add-on Base](https://github.com/hassio-addons/addon-base)
 
 ---
 
-*Disclaimer: This add-on is in active development. Features and configuration options may change.*
+*Disclaimer: This add-on is in active development. Configuration options and behavior may change.*

@@ -1,16 +1,20 @@
 #!/command/with-contenv bashio
 # ==============================================================================
-# Home Assistant Community Add-on: WireGuard
-# Forwards port 8080 on wireguard-connection to local network
+# Home Assistant Add-on: xLink Client (Tailscale)
+# Port forwarder via socat
 # ==============================================================================
 
-bashio::log.info "Starting Port forward..."
+bashio::log.info "Starting port forwarder..."
 
-# Get the target from forward
-target="host.docker.internal:8123"
-if bashio::config.has_value "client.forward"; then
-    target=$(bashio::config "client.forward")
+TARGET=""
+if bashio::config.has_value 'forward'; then
+    TARGET=$(bashio::config 'forward')
+else
+    bashio::log.info "No forward target configured, skipping port forwarder."
+    exit 0
 fi
 
-# Forward port 8080
-exec socat TCP4-LISTEN:8080,fork,reuseaddr "TCP4:${target}",reuseaddr
+bashio::log.info "Forwarding: ${TARGET}"
+
+# Forward from Tailscale port to target
+exec socat TCP4-LISTEN:8080,fork,reuseaddr "TCP4:${TARGET}",reuseaddr
