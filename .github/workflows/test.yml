@@ -1,0 +1,52 @@
+name: Test xLink Client Add-on
+
+on:
+  push:
+    paths:
+      - 'xlink_client/**'
+      - 'test_*.sh'
+      - '.github/workflows/test.yml'
+  pull_request:
+    paths:
+      - 'xlink_client/**'
+      - 'test_*.sh'
+      - '.github/workflows/test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run add-on tests
+        run: |
+          chmod +x test_addon.sh
+          bash test_addon.sh
+      
+      - name: Test Dockerfile build
+        run: |
+          if command -v docker &> /dev/null; then
+            echo "Docker available, testing build..."
+            cd xlink_client
+            docker build --build-arg BUILD_ARCH=amd64 --build-arg BUILD_VERSION=0.1.0 . -t xlink-test
+            echo "Docker build successful"
+          else
+            echo "Docker not available, skipping build test"
+          fi
+      
+      - name: Validate configuration
+        run: |
+          python3 -c "
+          import yaml
+          with open('xlink_client/config.yaml', 'r') as f:
+              config = yaml.safe_load(f)
+          print('Configuration validated:')
+          print(f'  Name: {config.get(\"name\")}')
+          print(f'  Version: {config.get(\"version\")}')
+          print(f'  Slug: {config.get(\"slug\")}')
+          print(f'  Architecture: {config.get(\"arch\")}')
+          print('  Schema keys:', list(config.get('schema', {}).keys()))
+          "
+        if: success()

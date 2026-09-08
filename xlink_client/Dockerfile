@@ -20,15 +20,16 @@ RUN \
 # Download and install Tailscale static binary
 RUN \
     if [ "${BUILD_ARCH}" = "aarch64" ]; then \
-        TAILSCALE_URL="https://pkgs.tailscale.com/stable/tailscale_1.80.2-linux-arm64.tgz"; \
+        TAILSCALE_URL="https://pkgs.tailscale.com/stable/tailscale_1.102.3_arm64.tgz"; \
     else \
-        TAILSCALE_URL="https://pkgs.tailscale.com/stable/tailscale_1.80.2-linux-amd64.tgz"; \
+        TAILSCALE_URL="https://pkgs.tailscale.com/stable/tailscale_1.102.3_amd64.tgz"; \
     fi && \
     curl -fsSL "$TAILSCALE_URL" -o /tmp/tailscale.tgz && \
     mkdir -p /tmp/tailscale-extract && \
     tar xzf /tmp/tailscale.tgz -C /tmp/tailscale-extract && \
-    cp /tmp/tailscale-extract/tailscale-* /usr/bin/tailscale && \
-    chmod +x /usr/bin/tailscale && \
+    find /tmp/tailscale-extract -name "tailscale" -type f -exec cp {} /usr/bin/ \; && \
+    find /tmp/tailscale-extract -name "tailscaled" -type f -exec cp {} /usr/bin/ \; && \
+    chmod +x /usr/bin/tailscale /usr/bin/tailscaled && \
     rm -rf /tmp/tailscale.tgz /tmp/tailscale-extract
 
 # Copy root filesystem
